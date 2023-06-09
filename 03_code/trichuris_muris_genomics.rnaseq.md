@@ -1,16 +1,20 @@
-# trichuris_muris_genomics
+# trichuris_muris_genomics.rnaseq
 
 ### stephen doyle
 
+- code used to explore bulk RNAseq data from Maria Duque's lab comparing T. muris development in mice and in organoids
 
 
 
-
-## 
+## Download reference from WormBase ParaSite
 ```bash
+# working directory
 cd /nfs/users/nfs_s/sd21/lustre_link/trichuris_muris/RNAseq/REF
 
+# genome
 wget https://ftp.ebi.ac.uk/pub/databases/wormbase/parasite/releases/WBPS17/species/trichuris_muris/PRJEB126/trichuris_muris.PRJEB126.WBPS17.genomic.fa.gz
+
+# annotation
 wget https://ftp.ebi.ac.uk/pub/databases/wormbase/parasite/releases/WBPS17/species/trichuris_muris/PRJEB126/trichuris_muris.PRJEB126.WBPS17.annotations.gff3.gz
 
 gunzip trichuris_muris.PRJEB126.WBPS17.genomic.fa.gz
@@ -20,6 +24,9 @@ gunzip trichuris_muris.PRJEB126.WBPS17.annotations.gff3.gz
 
 
 ## Get the raw RNAseq data
+- Maria gave me some metadata of samples all from the lane 46825_1
+- need to download these from iRods, and then convert from cram to fastq format
+
 ```bash
 # raw data directory
 cd /nfs/users/nfs_s/sd21/lustre_link/trichuris_muris/RNAseq/RAW_DATA
@@ -93,7 +100,9 @@ mv kallisto_* KALLISTO_MAPPED_SAMPLES/
 ```bash
 
 # extract TPMs per sample
-for i in ` ls -1d *out `; do echo $i > ${i}.tpm ; cat ${i}/abundance.tsv | cut -f5 | sed '1d' >> ${i}.tpm; done
+for i in ` ls -1d *out `; do 
+  echo $i > ${i}.tpm ; cat ${i}/abundance.tsv | cut -f5 | sed '1d' >> ${i}.tpm; 
+  done
 
 # generate a "transcripts" list, taken from the TRANSCRIPTS.fa file
 #echo "ID" > transcripts.list; grep ">" ../TRANSCRIPTS.fa | cut -f1 -d  " " | sed 's/>//g' >> transcripts.list
@@ -114,6 +123,7 @@ mv tmp kallisto_allsamples.tpm.table
 
 sed -i -e 's/Transcript://g' -e 's/kallisto_//g' -e 's/_out//g' kallisto_allsamples.tpm.table
 ```
+
 
 ```R
 # load libraries
@@ -164,6 +174,10 @@ heatmap.2(data_filtered,trace="none",na.color="grey",labRow=F,dendrogram='both',
 
 ```
 
+
+
+
+```R
 #Create a matrix from our table of counts
 pca_matrix <- read.table("kallisto_allsamples.tpm.table", header=T) %>%
 #Add one to all TPM values
@@ -264,3 +278,4 @@ scale_colour_viridis_d()
 
 #Print and save the plot
 pca_plot1
+```
