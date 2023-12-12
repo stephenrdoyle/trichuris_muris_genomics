@@ -133,4 +133,4 @@ for i in *bam; do
 
 ```
 - screenshot over coverage from jBrowse
-![](../04_analysis/tmuris_transgenesis_wgs_plasmid-coverage.png)
+[](../04_analysis/tmuris_transgenesis_wgs_plasmid-coverage.png)
