@@ -302,20 +302,7 @@ ggsave("gene_set_enrichment_6v8weeks.png", height=150, width=250, units="mm")
 
 
 
-EnhancedVolcano(res.dat,
-                lab = res.dat$Target_ID,
-                x = 'log2FoldChange',
-                y = 'pvalue',
-                title = 'Volcano - global',
-                pCutoff = 10e-32,
-                FCcutoff = 0.5,
-                pointSize = 3.0,
-                labSize = 1.0,
-                drawConnectors = TRUE,
-                widthConnectors = 0.5)
 
-res.Global.list <- filter(res.dat, log2FoldChange > 0.5 | log2FoldChange < 0.5, padj <  0.01)
-write.csv(res.Global.list, "res_global.csv")
 
 ##########################################################
 ############GO terms curated #############################
