@@ -266,8 +266,8 @@ ggsave("hatching_de_genes_goterms_3x2.png", height=80, width=170, units="mm")
 
 
 
-
-
+## Plot gProfiler results
+```R
 data_6w <- read.delim("gprofiler_6week.txt")
 # https://biit.cs.ut.ee/gplink/l/TyiRF6NkQ8
 
@@ -294,9 +294,9 @@ plot_gp_8w <- ggplot(data8w_filter) +
 plot_gp_6w + plot_gp_8w + plot_layout(ncol=2, guides = "collect") & theme(legend.position = 'bottom')
 
 ggsave("gene_set_enrichment_6v8weeks.pdf", height=80, width=170, units="mm")
-
-
-
+ggsave("gene_set_enrichment_6v8weeks.png", height=80, width=170, units="mm")
+```
+![](../04_analysis/gene_set_enrichment_6v8weeks.png)
 
 
 
