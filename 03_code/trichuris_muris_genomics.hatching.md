@@ -293,8 +293,8 @@ plot_gp_8w <- ggplot(data8w_filter) +
 
 plot_gp_6w + plot_gp_8w + plot_layout(ncol=2, guides = "collect") & theme(legend.position = 'bottom')
 
-ggsave("gene_set_enrichment_6v8weeks.pdf", height=80, width=170, units="mm")
-ggsave("gene_set_enrichment_6v8weeks.png", height=80, width=170, units="mm")
+ggsave("gene_set_enrichment_6v8weeks.pdf", height=150, width=250, units="mm")
+ggsave("gene_set_enrichment_6v8weeks.png", height=150, width=250, units="mm")
 ```
 ![](../04_analysis/gene_set_enrichment_6v8weeks.png)
 
