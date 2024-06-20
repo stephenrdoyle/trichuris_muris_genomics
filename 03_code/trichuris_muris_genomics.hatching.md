@@ -256,9 +256,9 @@ plot_pep_inhibitors <- plot_GO_volcanos("GO:0030414", "peptidase inhibitor activ
 
 
 ggsave("hatching_de_genes_goterms_3x2.pdf", height=80, width=170, units="mm")
-
+ggsave("hatching_de_genes_goterms_3x2.png", height=80, width=170, units="mm")
 ```
-
+![](../04_analysis/hatching_de_genes_goterms_3x2.png)
 
 
 
