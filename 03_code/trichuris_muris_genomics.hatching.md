@@ -4,6 +4,78 @@
 
 
 
+## Sample metadata and lane IDs
+
+| Sample_name | Sanger_sample_ID | Time    | Replicate | Lane ID 1  | Lane ID 2  | Study | Study_accession |
+|-------------|------------------|---------|-----------|------------|------------|-------|-----------------|
+| 6W1         | 6035STDY8620659  | 6_weeks | 1         | 32620_7_1  | 32377_6_1  | 6035  | ERP118415       |
+| 6W2         | 6035STDY8620660  | 6_weeks | 2         | 32620_7_2  | 32377_6_2  | 6035  | ERP118415       |
+| 6W3         | 6035STDY8620661  | 6_weeks | 3         | 32620_7_3  | 32377_6_3  | 6035  | ERP118415       |
+| 6W4         | 6035STDY8620662  | 6_weeks | 4         | 32620_7_4  | 32377_6_4  | 6035  | ERP118415       |
+| 6W5         | 6035STDY8620663  | 6_weeks | 5         | 32620_7_5  | 32377_6_5  | 6035  | ERP118415       |
+| 8W1         | 6035STDY8620664  | 8_weeks | 1         | 32620_7_6  | 32377_6_6  | 6035  | ERP118415       |
+| 8W2         | 6035STDY8620665  | 8_weeks | 2         | 32620_7_7  | 32377_6_7  | 6035  | ERP118415       |
+| 8W3         | 6035STDY8620666  | 8_weeks | 3         | 32620_7_8  | 32377_6_8  | 6035  | ERP118415       |
+| 8W4         | 6035STDY8620667  | 8_weeks | 4         | 32620_7_9  | 32377_6_9  | 6035  | ERP118415       |
+| 8W5         | 6035STDY8620668  | 8_weeks | 5         | 32620_7_10 | 32377_6_10 | 6035  | ERP118415       |
+| 8W6         | 6035STDY8620669  | 8_weeks | 6         | 32620_7_11 | 32377_6_11 | 6035  | ERP118415       |
+
+
+## Get the raw data
+```bash
+module load irods_extractor/v3.2.0
+
+irods_extractor --studyid 6035 --runid 32620
+
+irods_extractor --studyid 6035 --runid 32377
+
+
+
+
+
+
+
+## Running Kallisto
+```bash
+
+module load kallisto/0.46.2--h4f7b962_1
+
+# Kalliso starts by building and index, using the Trichuris music transcripts file which we pull with wget. Check if names update over time!
+if test -f  trichuris_muris.PRJEB126.WBPS18.mRNA_transcripts.fa.gz; 
+then echo "Transcriptome already downloaded - proceeding"
+else wget https://ftp.ebi.ac.uk/pub/databases/wormbase/parasite/releases/WBPS18/species/trichuris_muris/PRJEB126/trichuris_muris.PRJEB126.WBPS18.mRNA_transcripts.fa.gz
+fi
+
+# If index file does not exist yet then we make one
+if test -f Tmuris_transcripts.idx;
+then echo "Transcript index already built - proceeding"
+else kallisto index -i Tmuris_transcripts.idx trichuris_muris.PRJEB126.WBPS18.mRNA_transcripts.fa.gz
+fi
+
+
+
+#This loop runs through samples line by line (-1) with _1.fastq.gz in the name, and sed removed the '_1.fastq.gz.
+#While read statement loops kallisto, which requires the transcripts.idx index made previously above.
+#Outputs to head node folder 
+
+if [ -z "$(ls -A /nfs/users/nfs_p/pa16/Hatching_RNAseq/KallistoOutputs)" ]; then
+	echo "Starting Kallisto Run" |
+	cd /nfs/users/nfs_p/pa16/lustre_link/HATCHING/RAW_DATA |
+    while read SAMPLE LANE1 LANE2; do
+    kallisto quant -i /nfs/users/nfs_p/pa16/Hatching_RNAseq/Tmuris_transcripts.idx -o /nfs/users/nfs_p/pa16/Hatching_RNAseq/KallistoOutputs/${SAMPLE} -b 100 ${LANE1}_1.fastq.gz ${LANE1}_2.fastq.gz ${LANE2}_1.fastq.gz ${LANE2}_2.fastq.gz;
+    done < samples_lane1_lane2.txt
+else
+	echo "Files Exist, check to see if Kallisto results present"
+fi
+
+```
+
+
+
+
+
+
+
 ## DEseq2 from Kallisto outputs
 ```R
 # install packages if needed
