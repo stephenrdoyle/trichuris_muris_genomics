@@ -31,13 +31,27 @@ irods_extractor --studyid 6035 --runid 32377
 
 
 
+imeta -z seq qu -d study_id = 6035
 
+ils | grep 32620_7 | grep "cram" | grep -v "phix" | grep -v "crai" | sed 's/ //g' | while read -r ID; do echo "iget ${ID}"; done
+
+ils | grep "32377_6" | grep "cram" | grep -v "phix" | grep -v "crai" | sed 's/ //g' | while read -r ID; do echo "iget ${ID}"; done
+```
+
+
+## QC the raw data
+```bash
+
+bsub.py 10 fqc ~sd21/bash_scripts/run_fastqc
+
+```
+![multiqc](../04_analysis/hatching_raw-rnaseq-data.multiqc_report.html)
 
 
 
 ## Running Kallisto
 ```bash
-
+# load kallisto
 module load kallisto/0.46.2--h4f7b962_1
 
 # Kalliso starts by building and index, using the Trichuris music transcripts file which we pull with wget. Check if names update over time!
@@ -108,11 +122,6 @@ sampleinfo <- read.csv("KallistoOutputs/SampleInfo.csv")
 sampleinfo$timepoint <- as.factor(sampleinfo$timepoint)
 sampleinfo$time_sample <- as.factor(sampleinfo$time_sample)
 
-# Adding bonus groups based on PCA results for ggvenn
-#group_time <- c("6W_A", "8W_A", "8W_A", "6W_A", "6W_A","6W_A", "6W_B","8W_A", "8W_B","8W_A","8W_B")
-#group_time <- c("A", "C", "C", "A", "A", "A", "B","C", "D","C","D")
-#sampleinfo <- cbind.data.frame(sampleinfo, group_time)
-
 #read kallisto files
 files <- file.path("KallistoOutputs", sampleinfo$time_sample, "abundance.h5")
 files <- set_names(files, sampleinfo$SampleName)
@@ -128,8 +137,8 @@ simple.model <- as.formula(~ timepoint)
 
 # because of alphabetical assignment our beta 0 / 1 are the wrong way around
 sampleinfo <- mutate(sampleinfo, timepoint = fct_relevel(timepoint, "Egg_6w"))
-model.matrix(simple.model, data = sampleinfo)
-cbind(sampleinfo, model.matrix(simple.model, data = sampleinfo))
+#model.matrix(simple.model, data = sampleinfo)
+#cbind(sampleinfo, model.matrix(simple.model, data = sampleinfo))
 
 
 # Import the things into DESEq2 ----
@@ -146,8 +155,11 @@ ddsObj <- DESeq(ddsObj.filt)
 
 # estimate size factors ----
 ddsObj <- estimateSizeFactors(ddsObj)
-res <- results(ddsObj, name="timepoint_Egg_8w_vs_Egg_6w")
-res <- results(ddsObj, contrast=c("timepoint", "Egg_6w","Egg_8w"))
+
+#res <- results(ddsObj, name="timepoint_Egg_8w_vs_Egg_6w")
+#res <- results(ddsObj, contrast=c("timepoint", "Egg_6w","Egg_8w"))
+
+
 
 # because we are interested in 6W vs 8W, we set 'coef=2'
 resApe <- lfcShrink(ddsObj, coef=2, type="apeglm")
@@ -166,6 +178,8 @@ resApe <- lfcShrink(ddsObj, coef=2, type="apeglm")
 deseq2VST <- vst(ddsObj, blind = T)
 
 pcaData <- plotPCA(deseq2VST, intgroup=c("timepoint"), returnData=TRUE)
+
+pcaData <- plotPCA(ddsObj, intgroup=c("timepoint"), returnData=TRUE)
 
 percentVar <- round(100 * attr(pcaData, "percentVar"))
 
@@ -207,6 +221,8 @@ plot_volcano_6v8
 
 ggsave("hatching_de_genes_all.pdf", height=100, width=100, units="mm")
 ggsave("hatching_de_genes_all.png", height=100, width=100, units="mm")
+
+write.csv(as.data.frame(de_data), file="hatching_RNAseq_DE_6v8eggs_all-transcripts.csv", row.names = FALSE, quote=FALSE)
 ```
 ![](../04_analysis/hatching_de_genes_all.png)
 
@@ -288,13 +304,28 @@ plot_GO_volcanos <- function(GOterm, name) {
   
   # Create the volcano plot
   plot <- ggplot() + 
+    # All data points in grey
     geom_point(data = de_data, aes(x = log2FoldChange, y = -log10(padj)), size = 0.5, colour = "grey") +
-    geom_point(data = filtered_go_transcript_expr, aes(x = log2FoldChange, y = -log10(padj), colour = padj < p_threshold), size = 1.5) +
+    
+    # Highlighted points for significant genes
+    geom_point(data = filtered_go_transcript_expr, 
+               aes(x = log2FoldChange, y = -log10(padj), 
+                   colour = (padj < 0.01 & log2FoldChange > 1) | (padj < 0.01 & log2FoldChange < -1)), 
+               size = 1.5) +
+    
+    # Horizontal and vertical threshold lines
     geom_hline(yintercept = -log10(p_threshold), linetype = "dashed", linewidth = 0.3) +
     geom_vline(xintercept = c(fc_threshold, -fc_threshold), linetype = "dashed", linewidth = 0.3) + 
+    
+    # Custom color scale
     scale_colour_manual(values = c("TRUE" = "red", "FALSE" = "orange")) +
-    labs(title = name, subtitle = paste0(GOterm, " n=", nrow(filtered_go_transcript_expr)), y = "-log10(p-value)", x = "log2(fold change)") +
-    theme_bw() + theme(legend.position = "none")
+    
+    # Labels and theme
+    labs(title = name, 
+         subtitle = paste0(GOterm, " n=", nrow(filtered_go_transcript_expr)), 
+         y = "-log10(p-value)", x = "log2(fold change)") +
+    theme_bw() + 
+    theme(legend.position = "none")
   
   # Save the plot to a file
   #ggsave(filename = paste0(name, "_volcano_plot.png"), plot = plot, width = 8, height = 6)
@@ -327,14 +358,94 @@ plot_pep_inhibitors <- plot_GO_volcanos("GO:0030414", "peptidase inhibitor activ
 ( plot_chitinase +  plot_serine + plot_lipase) / (plot_metallo  + plot_pep_inhibitors  + plot_cysteine) 
 
 
-ggsave("hatching_de_genes_goterms_3x2.pdf", height=80, width=170, units="mm")
-ggsave("hatching_de_genes_goterms_3x2.png", height=80, width=170, units="mm")
+ggsave("hatching_de_genes_goterms_3x2.pdf", height=150, width=230, units="mm")
+ggsave("hatching_de_genes_goterms_3x2.png", height=150, width=230, units="mm")
 ```
 ![](../04_analysis/hatching_de_genes_goterms_3x2.png)
 
 
 
+```R
+make_GO_tables <- function(GOterm, name){
+  # Load required libraries
+  library(dplyr)
+  library(fuzzyjoin)
+  library(ggplot2)
+  library(tibble)
 
+
+  de_data <- as.data.frame(resApe)
+ de_data <- rownames_to_column(de_data, "Target_ID")
+
+ # Read data files
+  goterms <- read.delim("mart_export.txt", sep="\t", header=TRUE)
+  merops <- read.delim("MEROPS_annotated.csv", sep=",", header=TRUE)
+  
+  # Filter the data for the given GO term
+  filtered_go_transcript_ids <- filter(goterms, GO.term.accession == GOterm) %>% 
+    select(Transcript.stable.ID)
+  
+  # Join the expression data with filtered GO term data
+  filtered_go_transcript_expr <- inner_join(de_data, filtered_go_transcript_ids, by = c("Target_ID" = "Transcript.stable.ID"))
+  
+
+  # Perform fuzzy join with MEROPS data
+  filtered_go_transcript_expr_mer <- filtered_go_transcript_expr %>% 
+    fuzzy_left_join(merops, by = c("Target_ID" = "Gene_ID"), match_fun = str_detect)
+
+filtered_go_transcript_expr_mer
+
+write.csv(as.data.frame(filtered_go_transcript_expr_mer), file= paste0(name, "_DE_per_GOterm_data.csv"), row.names = FALSE, quote=FALSE)
+
+up_6w <- filtered_go_transcript_expr %>% filter(log2FoldChange < -1 & padj < 0.01) %>% nrow()
+
+print(up_6w)
+
+
+up_8w <- filtered_go_transcript_expr %>% filter(log2FoldChange > 1 & padj < 0.01) %>% nrow()
+
+print(up_8w)
+}
+
+
+
+  #GO:0004568 - chitinase activity
+  #GO:0004867	serine-type endopeptidase inhibitor activity
+  #GO:0004252	serine-type endopeptidase activity
+  # GO:0008237	metallopeptidase activity
+  # GO:0008234	cysteine-type peptidase activity
+  # GO:0008233	peptidase activity
+  # GO:0030414	peptidase inhibitor activity  
+  # GO:0016298  lipase activity
+
+
+make_GO_tables("GO:0004252", "serine-type_endopeptidase_activity")
+[1] 9
+[1] 17
+
+
+make_GO_tables("GO:0004568", "chitinase_activity") # chitinase activity
+[1] 3
+[1] 0
+
+make_GO_tables("GO:0008234", "cysteine-type_peptidase_activity")
+[1] 3
+[1] 3
+
+make_GO_tables("GO:0008237", "metallopeptidase_activity")
+[1] 25
+[1] 6
+
+
+make_GO_tables("GO:0016298", "lipase_activity")
+
+[1] 0
+[1] 0
+
+make_GO_tables("GO:0030414", "peptidase_inhibitor_activity")
+[1] 9
+[1] 21
+```
 
 
 
